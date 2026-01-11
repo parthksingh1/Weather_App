@@ -161,6 +161,23 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Weather endpoint
+app.post('/api/weather', async (req: Request, res: Response) => {
+  try {
+    const { query, lang = 'en' } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    const weatherData = await fetchWeather(query, lang);
+    res.json(weatherData);
+  } catch (error: any) {
+    console.error('Weather API error:', error);
+    res.status(500).json({ error: error.message || 'Weather fetch failed' });
+  }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
