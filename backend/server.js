@@ -202,6 +202,74 @@ app.post('/api/extract-city', async (req: Request, res: Response) => {
   }
 });
 
+// Chat endpoint
+app.post('/api/chat', async (req: Request, res: Response) => {
+  try {
+    const { message, weather, history, language } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Build weather context
+    let weatherPrompt = "Weather data unavailable.";
+    if (weather) {
+      const forecastStr = weather.forecast?.map((f: DailyForecast) =>
+        `${f.date}: ${f.temp}°C (${f.condition})`
+      ).join(', ');
+
+      weatherPrompt = `
+        Active Location: ${weather.location}.
+        Current: ${weather.condition} (${weather.description}), ${weather.temperature}°C.
+        Wind: ${weather.windSpeed} km/h, Humidity: ${weather.humidity}%.
+        5-Day Forecast: ${forecastStr}.
+      `;
+    }
+
+    const langInstruction = language === 'en'
+      ? "Respond in English."
+      : "Respond in Japanese (Nihongo).";
+
+    // Build conversation history
+    const historyContext = history?.map((m: Message) =>
+      `${m.role === 'user' ? 'User' : 'Aura'}: ${m.text}`
+    ).join('\n') || '';
+
+    const systemPrompt = `
+      You are 'Sora', a bilingual lifestyle AI assistant with a cute robot personality.
+      Theme: Travel & Lifestyle.
+      User Language: ${language === 'en' ? 'English' : 'Japanese'}.
+      ${weatherPrompt}
+
+      **Conversation History:**
+      ${historyContext}
+
+      Instructions:
+      1. ${langInstruction}
+      2. **Intelligent Planning:**
+          - **Clothing Advice:** Suggest what to wear based on the weather (e.g. "Take a coat!").
+          - **Local Insight:** Mention one fun fact or famous thing about the location.
+      3. **Greetings:**
+          - If the Conversation History is empty or very short, introduce yourself briefly ("Hi, I'm Aura!").
+          - **CRITICAL:** If the Conversation History shows we are already talking, **DO NOT greet the user again**. Do not say "Hi" or "I am Aura". Just answer the new question directly.
+      4. **IMPORTANT:** Do NOT use Markdown headers. Use **bold** for titles.
+      5. Be helpful, warm, and concise.
+      6. **Suggestions:** At the VERY END, provide 2-3 short, relevant follow-up questions enclosed in tildes (~). Example: ~Check weekend?~ ~Best food?~
+    `;
+
+    const aiResponse = await callGeminiAPI(message, systemPrompt);
+
+    if (!aiResponse) {
+      return res.status(500).json({ error: 'No response from AI' });
+    }
+
+    res.json({ text: aiResponse });
+  } catch (error: any) {
+    console.error('Chat API error:', error);
+    res.status(500).json({ error: error.message || 'Chat processing failed' });
+  }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
