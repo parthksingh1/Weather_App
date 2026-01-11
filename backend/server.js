@@ -178,6 +178,30 @@ app.post('/api/weather', async (req: Request, res: Response) => {
   }
 });
 
+// Extract city from query
+app.post('/api/extract-city', async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    const prompt = `Analyze query: "${query}". Return ONLY city name (English) if mentioned. If "current location" or no location, return "NONE".`;
+    const result = await callGeminiAPI(prompt);
+
+    if (result === 'NONE' || !result) {
+      return res.json({ city: null });
+    }
+
+    const city = result.trim().replace(/['"]/g, '');
+    res.json({ city });
+  } catch (error) {
+    console.error('Extract city error:', error);
+    res.json({ city: null });
+  }
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
