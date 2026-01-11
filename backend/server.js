@@ -36,6 +36,13 @@ interface Message {
   timestamp: number;
 }
 
+// Routes
+
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
